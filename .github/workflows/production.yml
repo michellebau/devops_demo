@@ -1,29 +1,41 @@
-# pytest.ini
-[pytest]
-# Specifies that tests are contained in the 'tests' folder
-testpaths = tests
+name: CI/CD Pipeline
 
-# Allows verbose output for test results
-addopts = -v
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
-# Automatically discover test files matching 'test_*.py' or '*_test.py'
-python_files = test_*.py *_test.py
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v3
 
-# Automatically discover test classes that match 'Test*' (excluding the base class 'Test')
-python_classes = Test*
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-# Automatically discover test functions that match 'test_*'
-python_functions = test_*
-
-# Option to add markers for different test categories, like 'slow' or 'fast'
-markers =
-    slow: marks tests as slow (deselect with '-m "not slow"')
-    fast: marks tests as fast (deselect with '-m "not fast"')
-
-# Option to configure additional plugins if needed
-# plugins =
-#     plugin1
-#     plugin2
-
-# Option to adjust logging level, useful for debugging
-# log_level = INFO
+      - name: Run pytest
+        run: pytest
+      
+      - name: Log in to DockerHub
+        if: success()
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets. DOCKERHUB_USERNAME }}
+          username: ${{ secrets. DOCKERHUB_TOKEN }}
+      
+      - name: Build and push Docker image
+        if: success()
+        uses: docker/build-push-action@v3
+        with:
+          push: true
+          tags: aermichelle/devops_demo:latest
